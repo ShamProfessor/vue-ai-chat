@@ -13,6 +13,11 @@
       >
         SSE模式
       </button>
+      当前模型
+      <select v-model="currentModel">
+        <option value="deepseek-ai/DeepSeek-V3">DeepSeek V3</option>
+        <option value="deepseek-ai/DeepSeek-R1">DeepSeek R1</option>
+      </select>
     </div>
 
     <div class="main-content">
@@ -32,7 +37,7 @@
 </template>
 
 <script setup>
-import { ref } from "vue";
+import { provide, ref } from "vue";
 import ChatContainer from "./components/ChatContainer.vue";
 import ChatInput from "./components/ChatInput.vue";
 
@@ -40,6 +45,9 @@ const currentMode = ref("fetch");
 const isStreaming = ref(false);
 const userInput = ref("");
 const chatContainer = ref(null);
+const currentModel = ref("deepseek-ai/DeepSeek-V3");
+
+provide("currentModel", currentModel);
 
 const sendMessage = async (message) => {
   isStreaming.value = true;

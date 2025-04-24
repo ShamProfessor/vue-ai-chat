@@ -1,13 +1,20 @@
-import { ref } from "vue";
+import { inject } from "vue";
 import { fetchEventSource } from "@microsoft/fetch-event-source";
 
 // Fetch模式的流式处理
+
+// const currentModel =
+//   import.meta.env.VITE_SELECTED_MODEL || "deepseek-ai/DeepSeek-V3";
+
 export const handleFetchStream = async (
   reader, // 直接接收reader而不是response
   messageCallback,
-  onComplete
+  onComplete,
+  currentModel
 ) => {
   const decoder = new TextDecoder();
+  let isInReasoning = false;
+  const isR1 = currentModel === "deepseek-ai/DeepSeek-R1";
 
   try {
     while (true) {
@@ -24,8 +31,22 @@ export const handleFetchStream = async (
 
           try {
             const parsed = JSON.parse(data);
-            const content = parsed.choices[0]?.delta?.content || "";
-            messageCallback(content);
+            const reasoningContent =
+              parsed.choices[0]?.delta?.reasoning_content;
+            const normalContent = parsed.choices[0]?.delta?.content;
+
+            if (reasoningContent && isR1) {
+              // 检测是否在推理过程中
+              isInReasoning = true;
+              messageCallback(reasoningContent);
+            } else if (normalContent) {
+              // 如果之前在推理过程中，现在收到普通内容，说明推理结束
+              if (isInReasoning && isR1) {
+                messageCallback("\n\n---思考结束---\n\n");
+                isInReasoning = false;
+              }
+              messageCallback(normalContent);
+            }
           } catch (e) {
             console.error("解析响应数据失败:", e);
           }
@@ -44,8 +65,15 @@ export const handleFetchStream = async (
 };
 
 // SSE模式的流式处理
-export const handleSSEStream = (userMessage, messageCallback, onComplete) => {
+export const handleSSEStream = (
+  userMessage,
+  currentModel,
+  messageCallback,
+  onComplete
+) => {
   const ctrl = new AbortController();
+  let isInReasoning = false;
+  const isR1 = currentModel === "deepseek-ai/DeepSeek-R1";
 
   try {
     fetchEventSource("https://api.siliconflow.cn/v1/chat/completions", {
@@ -56,7 +84,7 @@ export const handleSSEStream = (userMessage, messageCallback, onComplete) => {
           "Bearer sk-wxotwmmzaakvqbgllpjjvcwrpeuoihihmmqrrtiqnatoumbg",
       },
       body: JSON.stringify({
-        model: "deepseek-ai/DeepSeek-V3",
+        model: currentModel,
         messages: [{ role: "user", content: userMessage }],
         stream: true,
       }),
@@ -71,10 +99,18 @@ export const handleSSEStream = (userMessage, messageCallback, onComplete) => {
 
         try {
           const parsed = JSON.parse(event.data);
-          const content = parsed.choices[0]?.delta?.content || "";
-          if (content) {
-            console.log("sse content: ");
-            messageCallback(content);
+          const reasoningContent = parsed.choices[0]?.delta?.reasoning_content;
+          const normalContent = parsed.choices[0]?.delta?.content;
+
+          if (reasoningContent && isR1) {
+            isInReasoning = true;
+            messageCallback(reasoningContent);
+          } else if (normalContent) {
+            if (isInReasoning && isR1) {
+              messageCallback("\n\n---思考结束---\n\n");
+              isInReasoning = false;
+            }
+            messageCallback(normalContent);
           }
         } catch (err) {
           console.error("JSON 解析失败:", err);
@@ -103,7 +139,7 @@ export const handleSSEStream = (userMessage, messageCallback, onComplete) => {
   return ctrl; // 返回 AbortController 实例
 };
 
-export const createStreamRequest = async (userMessage) => {
+export const createStreamRequest = async (userMessage, currentModel) => {
   return fetch("https://api.siliconflow.cn/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -112,7 +148,7 @@ export const createStreamRequest = async (userMessage) => {
         "Bearer sk-wxotwmmzaakvqbgllpjjvcwrpeuoihihmmqrrtiqnatoumbg",
     },
     body: JSON.stringify({
-      model: "deepseek-ai/DeepSeek-V3",
+      model: currentModel,
       messages: [{ role: "user", content: userMessage }],
       stream: true,
     }),

@@ -22,7 +22,14 @@
 </template>
 
 <script setup>
-import { ref, nextTick, onUnmounted, defineProps, defineEmits } from "vue";
+import {
+  ref,
+  nextTick,
+  onUnmounted,
+  defineProps,
+  defineEmits,
+  inject,
+} from "vue";
 import MarkdownIt from "markdown-it";
 import {
   handleFetchStream,
@@ -39,6 +46,7 @@ const props = defineProps({
 });
 
 const emit = defineEmits(["update:isStreaming"]);
+const currentModel = inject("currentModel");
 
 const md = new MarkdownIt({
   breaks: true,
@@ -133,7 +141,10 @@ const sendMessage = async (userMessage) => {
 
   try {
     if (props.mode === "fetch") {
-      const response = await createStreamRequest(userMessage);
+      const response = await createStreamRequest(
+        userMessage,
+        currentModel.value
+      );
       currentRequest.value = response;
       reader.value = response.body.getReader();
 
@@ -148,12 +159,14 @@ const sendMessage = async (userMessage) => {
         () => {
           currentRequest.value = null;
           reader.value = null;
-        }
+        },
+        currentModel.value
       );
     } else {
       // SSE模式
       const eventSource = handleSSEStream(
         userMessage,
+        currentModel.value,
         (content) => {
           emit("update:isStreaming", true);
           // messages.value[aiMessageIndex].content += content;
