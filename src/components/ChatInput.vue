@@ -3,8 +3,8 @@
     <div class="input-container">
       <textarea
         v-model="inputValue"
-        @keyup.enter.ctrl="handleSend"
-        placeholder="输入消息... (Ctrl + Enter 发送)"
+        @keyup.enter="handleSend"
+        placeholder="输入消息... (Enter 发送)"
         :disabled="isStreaming"
       ></textarea>
       <button

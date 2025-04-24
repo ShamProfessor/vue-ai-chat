@@ -18,8 +18,6 @@ marp: true
 
 ### 2.1 使用 Fetch API 流式处理
 
-**关键点解析：**
-
 ### 2.2 处理 SSE（Server-Sent Events）
 
 ## 三、主流框架实现示例
