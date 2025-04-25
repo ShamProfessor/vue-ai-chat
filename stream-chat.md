@@ -49,8 +49,8 @@ marp: true
 
 ### 1.3 关键技术支撑
 
-- HTTP/1.1 Chunked Encoding
-- Fetch API ReadableStream
+- HTTP/1.1 Chunked Encoding【传输层】
+- Fetch API ReadableStream 【客户端处理】
 - Server-Sent Events (SSE)
 - WebSocket（双向通信场景）
 
@@ -82,7 +82,20 @@ async function fetchStream(url) {
 
 关键点：
 
+- ## 核心 1： const response = await fetch(url);
+
+  <span style="color: green">**只等待"响应头"返回，不等待"完整响应体"下载完毕**</span>：
+
+  这意味着只要服务器返回了 HTTP 响应的 headers（即 status, Content-Type, 等），这个 await 就结束。此时 response.body 是一个可读流（ReadableStream），真正的数据内容还在“后面慢慢来”。
+
 - response.body.getReader() 获取可读流
+
+- ## 核心 2： const { done, value } = await reader.read();
+
+  • 它是一个逐块（chunk）读取流的异步操作。
+  • 每次 read() 都是等新的数据从服务器传过来，然后你就能处理那一块。
+  • 这才是流式响应真正的“按需拉取”核心操作。
+
 - TextDecoder 处理二进制数据转换 文本
 - 循环读取直到 done 为 true
 
@@ -222,6 +235,41 @@ _过程：_
 - 同步渲染 ：确保 DOM 更新与浏览器的渲染周期同步
 - 减少重排重绘 ：将多次 DOM 更新合并为一次，显著减少浏览器的渲染负担
 
+# _拓展_：
+
+```text
+响应式数据变化
+ ↓
+Vue 将变更入队（异步 update queue）
+ ↓
+微任务中批量执行 watcher / effect 更新
+ ↓
+Virtual DOM diff & patch
+ ↓
+DOM 操作触发样式计算 / 回流 / 重绘
+ ↓
+requestAnimationFrame 阶段渲染
+```
+
+# _举例_：
+
+```javascript
+<template>
+  <div>{{ text }}</div>
+</template>
+
+<script setup>
+import { ref } from 'vue'
+const text = ref('Hello')
+
+setInterval(() => {
+  text.value += '!'
+}, 16)
+</script>
+```
+
+在这个场景下： 1. 每 16ms 改一次 text.value； 2. Vue 会将更新任务入队（不是立刻 DOM 更新）； 3. 下一轮微任务中统一执行 diff & patch； 4. 触发 DOM 操作； 5. 最终浏览器在下一帧前把 DOM 渲染到屏幕上（rAF 阶段）。
+
 4. 性能提升体现
 
 - 更流畅的动画效果 ：与屏幕刷新率同步，避免掉帧
@@ -236,14 +284,7 @@ _过程：_
 ```javascript
 // 节流处理
 const throttle = (fn, delay) => {
-  let lastCall = 0;
-  return function (...args) {
-    const now = Date.now();
-    if (now - lastCall >= delay) {
-      fn.apply(this, args);
-      lastCall = now;
-    }
-  };
+...
 };
 
 // 位于底部时才自动滚动
@@ -268,3 +309,4 @@ const isNearBottom = () => {
 - 错误重试机制
 - 暂停/恢复控制
 - 撤回提问
+- 虚拟滚动
