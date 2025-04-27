@@ -1,11 +1,6 @@
-import { inject } from "vue";
 import { fetchEventSource } from "@microsoft/fetch-event-source";
 
 // Fetch模式的流式处理
-
-// const currentModel =
-//   import.meta.env.VITE_SELECTED_MODEL || "deepseek-ai/DeepSeek-V3";
-
 export const handleFetchStream = async (
   reader, // 直接接收reader而不是response
   messageCallback,
@@ -80,8 +75,7 @@ export const handleSSEStream = (
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization:
-          "Bearer sk-wxotwmmzaakvqbgllpjjvcwrpeuoihihmmqrrtiqnatoumbg",
+        Authorization: import.meta.env.VITE_API_KEY,
       },
       body: JSON.stringify({
         model: currentModel,
@@ -144,8 +138,7 @@ export const createStreamRequest = async (userMessage, currentModel) => {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization:
-        "Bearer sk-wxotwmmzaakvqbgllpjjvcwrpeuoihihmmqrrtiqnatoumbg",
+      Authorization: import.meta.env.VITE_API_KEY,
     },
     body: JSON.stringify({
       model: currentModel,
